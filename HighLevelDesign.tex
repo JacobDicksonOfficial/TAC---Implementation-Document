@@ -2,22 +2,193 @@
 
 \section{Overview of High-Level Design}
 
+The high-level design stage translated the requirements identified in Chapter Two into a technical direction for the final system. The purpose of this chapter is to explain the first-cut design decisions, the technologies selected, and the reasoning behind those choices before the report moves into the deeper systems architecture and implementation chapters.
+
+TAC was designed as a secure, identity-centric case management platform. The design therefore needed to combine several areas: a web application for case and subject management, a database layer for persistent storage, an identity layer for authentication and role mapping, a network layer for segmentation and controlled access, and a monitoring layer for audit and visibility. The system was not designed as a single isolated application running on one machine. Instead, the high-level design treated the project as a small enterprise-style environment where each component had a specific security and operational purpose.
+
+The design approach was based on the idea that sensitive case information should not be protected by one control alone. A username and password by themselves are not sufficient. A firewall rule by itself is not sufficient. A database permission by itself is not sufficient. The project therefore uses layered controls, where identity, network, application, database, and monitoring components all contribute to the overall security posture.
+
+At a high level, users access the TAC web application through a secure internal route. Authentication is handled through Active Directory and Active Directory Federation Services. Authorisation is based on role mapping from identity information and group membership. The web application communicates with Microsoft SQL Server to store and retrieve case, subject, and audit records. Network access is restricted using pfSense firewall rules and VLAN segmentation. Infrastructure monitoring is provided through Wazuh to increase visibility over system activity.
+
+This chapter explains why these technologies were selected and how they fit together before the detailed architecture is presented in Chapter Four.
+
+% Suggested figure:
+% Figure 3.1: High-level TAC design diagram showing users, ADFS, web app, SQL Server, pfSense/VLANs, and Wazuh.
+% Caption: High-level design of the TAC platform.
+
 \section{Design Approach}
+
+The design approach for TAC followed an iterative and layered model. The project began as an idea for a secure case management system and gradually evolved into a broader platform that included both application functionality and supporting infrastructure. The early design focused on what the system needed to do from a user perspective. Later iterations focused on how the system should be secured, hosted, monitored, and validated.
+
+The first design decision was to separate the project into two main areas: the application layer and the infrastructure layer. The application layer provides the user-facing functionality, including case records, subject records, bulk import, analytics, and audit views. The infrastructure layer supports the application through identity management, database hosting, firewalling, network segmentation, certificates, and monitoring. This separation helped keep the system organised and allowed each part of the project to be tested individually.
+
+The second design decision was to treat identity as the primary security boundary. Rather than relying only on whether a user was connected to the internal network, the system needed to verify who the user was and what role they had. This influenced the selection of Active Directory and ADFS, as both technologies support centralised identity and claims-based authentication.
+
+The third design decision was to avoid a flat network. A flat network would allow too much unnecessary communication between systems. Instead, the project used VLANs to separate users, servers, management systems, and remote access paths. pfSense was selected to control routing and firewall rules between these zones.
+
+The fourth design decision was to use persistent database storage. Early prototypes could use mock or browser-based data, but the final system required a proper database to reflect a realistic enterprise application. SQL Server was selected because it is widely used in business environments and integrates well with Windows Server infrastructure.
+
+The fifth design decision was to include monitoring and auditability from the start. A case management system should not only store information; it should also provide evidence of activity. For this reason, audit logging and Wazuh monitoring were included in the design.
+
+% Suggested figure:
+% Figure 3.2: Layered design model showing application, identity, database, network, and monitoring layers.
+% Caption: Layered design approach used in TAC.
 
 \section{Technology Selection}
 
+The technology choices were made based on the requirements of the project and the need to demonstrate a realistic secure infrastructure. Each technology was selected to perform a specific role within the system.
+
+Next.js was selected for the web application because it supports modern web application development, reusable components, server-side functionality, and API routes. This made it suitable for building both the user interface and the backend routes required to communicate with SQL Server. The use of Next.js also allowed the application to be developed iteratively, beginning with mock data and later moving toward a SQL-backed implementation.
+
+Microsoft SQL Server was selected as the database platform because the project required persistent structured storage. Case and subject records are relational by nature, and SQL Server provides a suitable environment for storing this information in tables with defined fields, relationships, and identifiers. SQL Server also fits naturally into a Windows Server environment, which was already required for Active Directory and ADFS.
+
+Active Directory Domain Services was selected as the central identity provider. Active Directory provides users, groups, organisational units, domain authentication, DNS integration, and Group Policy capabilities. These features made it suitable for modelling an enterprise identity environment. It also allowed the application to use domain users and security groups rather than relying on local application-only accounts.
+
+Active Directory Federation Services was selected to provide a federated identity layer. ADFS allows identity information from Active Directory to be issued as claims to an application. This supports a more modern authentication model where the application can make access decisions based on trusted identity information.
+
+pfSense was selected as the firewall and routing platform. It provides VLAN support, firewall rule control, VPN capability, NAT, routing, and a clear web-based management interface. It was suitable for demonstrating realistic network segmentation and controlled access between infrastructure zones.
+
+Proxmox was used to support the virtual lab environment. It allowed multiple virtual machines to be hosted for different system roles, including Windows Server systems, Linux systems, and monitoring components. This made it possible to build a multi-server architecture within a limited physical lab environment.
+
+Wazuh was selected as the monitoring platform. It provides host-based monitoring, event collection, and security visibility. This supported the requirement for infrastructure monitoring and helped demonstrate that the system could observe more than just application-level events.
+
+MinIO was considered for audit storage and future tamper-resistant storage design. However, the final report treats it carefully as either a design concept or future enhancement unless fully implemented and validated. Its relevance is that object storage with retention or object-lock style concepts could strengthen audit preservation in a future version of the platform.
+
+% Suggested table:
+% Table 3.1: Technology selection and rationale.
+% Columns: Technology, Purpose, Reason for Selection, Related Requirement.
+
 \section{Zero Trust Design Principles}
+
+Zero Trust was used as a guiding security principle for the design of TAC. The main idea behind Zero Trust is that no user, device, or system should be trusted automatically simply because it is inside a network. Instead, access should be verified, limited, monitored, and continuously controlled.
+
+The first Zero Trust principle applied in the project was verify explicitly. Users should authenticate through a trusted identity provider before accessing the application. In TAC, this is represented by the use of Active Directory and ADFS. The system is designed so that user identity and group membership can influence access decisions.
+
+The second principle was least privilege. Users should only receive the permissions required for their role. This shaped the RBAC model, where different user groups can have different levels of access to cases, subjects, analytics, and administrative functions. Least privilege reduces the risk of accidental damage, unauthorised access, and excessive permissions.
+
+The third principle was assume breach. The system was designed with the assumption that one control may fail or one account may be compromised. For that reason, additional controls such as VLAN segmentation, firewall restrictions, database isolation, SSL/TLS, audit logging, and monitoring were included. If one layer is bypassed, another layer should still reduce the impact.
+
+The fourth principle was segmentation. Users, servers, management systems, and security systems should not all communicate freely. pfSense firewall rules and VLANs were used to create controlled paths between systems. For example, users should access the web application, but they should not directly access the SQL database.
+
+The fifth principle was visibility. Security decisions are weaker if system activity cannot be seen. The project therefore included audit logging and Wazuh monitoring to support accountability and review.
+
+In the context of this project, Zero Trust was not treated as a product that can simply be installed. It was treated as a design model applied across identity, application, database, network, and monitoring layers.
+
+% Suggested figure:
+% Figure 3.3: Zero Trust principles mapped to TAC controls.
+% Caption: Zero Trust principles applied in the TAC design.
 
 \section{Identity-Centric Security Model}
 
+The identity-centric security model is one of the most important design decisions in the project. In TAC, access is intended to be based on who the user is, what group or role they belong to, and what action they are attempting to perform. This is different from a traditional model where access may be granted broadly once a user is connected to an internal network.
+
+Active Directory provides the foundation for the identity model. Users are created and managed as domain identities. Security groups are used to represent roles or permission levels. This allows the organisation to manage access centrally rather than creating separate application-only accounts.
+
+ADFS extends this model by allowing identity information to be passed to the application as claims. A claim can represent information such as username, email address, group membership, or role. The application can then use this information to decide what the user can see or do. This makes the design more flexible than hard-coding permissions into the application.
+
+The identity-centric model also supports better administration. If a user changes role, their group membership can be updated in Active Directory. The application can then respond to the updated claim or role mapping without needing a separate manual change inside the application. This is useful for environments where users may move between teams or where access must be revoked quickly.
+
+The model also supports accountability. When users authenticate with individual domain accounts, actions can be associated with a specific identity. This is important for audit logging because the system should be able to record which user created, edited, deleted, or imported records.
+
+The final design therefore places identity at the centre of the system. Network access, application access, database access, and audit logging all depend on being able to identify the user or system component involved.
+
+% Suggested figure:
+% Figure 3.4: Identity-centric security model showing AD user, group, ADFS claim, application role, and audit event.
+% Caption: Identity-centric access model used in TAC.
+
 \section{Role-Based Access Control Design}
+
+Role-Based Access Control was selected because TAC needed to support different levels of access for different users. In a case management system, it would be inappropriate for every user to have full administrative control. RBAC allows permissions to be grouped into roles and assigned to users based on their responsibilities.
+
+The RBAC design was based on the idea that Active Directory security groups can represent application roles. For example, one group may represent users who can only view case information, while another group may represent case leads who can create and update records. A separate administrative group may provide broader access for system management tasks.
+
+At a high level, the RBAC model can be divided into read, create, update, delete, analytics, audit, and administrative permissions. A read-only role may be allowed to view case and subject records but not modify them. An operational role may be allowed to create records but may not have access to delete or administrate them. A case lead role may have wider CRUD permissions. An administrator role may manage broader system configuration or access.
+
+This approach supports least privilege because permissions are not granted directly to every user. Instead, access is granted through role membership. This makes the system easier to manage and easier to audit. It also allows access decisions to be explained clearly in the report and validated through testing.
+
+RBAC also supports future expansion. If additional roles are needed, such as external partner, supervisor, analyst, or auditor, they can be added to the model without redesigning the whole application. The use of role mapping provides a scalable foundation for future access control improvements.
+
+% Suggested table:
+% Table 3.2: RBAC role matrix.
+% Columns: Role, Case Access, Subject Access, Bulk Import, Analytics, Audit, Administration.
 
 \section{Network Segmentation Design}
 
+Network segmentation was selected to reduce the risk created by a flat network. In a flat network, all systems may be able to communicate with each other unless manually restricted on every host. This creates unnecessary exposure, especially where user devices, servers, databases, and management systems exist in the same broadcast or routing environment.
+
+The TAC design separates systems into logical VLANs. Production users, servers, management systems, and VPN or administrative access paths are treated as separate zones. pfSense controls routing and firewall rules between these zones. This means that communication must be deliberately allowed rather than assumed.
+
+The server network contains systems such as the web application server, SQL Server, domain services, and other backend infrastructure. The management or security network is used for administrative and monitoring functions. User networks are kept separate from backend services. This reduces the chance that a standard user device can directly reach sensitive services such as SQL Server.
+
+The segmentation design supports several security goals. It limits lateral movement, reduces attack surface, supports least privilege at the network level, and makes firewall rules easier to reason about. It also supports validation because traffic can be tested between VLANs to confirm that only intended communication paths are allowed.
+
+Network segmentation also supports the wider Zero Trust approach. Even if a user is connected to the organisation's network, they should not automatically be able to access all servers or services. Each path should be justified by a requirement and controlled through firewall policy.
+
+% Suggested figure:
+% Figure 3.5: VLAN segmentation diagram showing user, server, management, and VPN/admin zones.
+% Caption: High-level VLAN segmentation design for TAC.
+
 \section{Application Design Overview}
+
+The TAC application was designed as a dashboard-based web platform. The main navigation areas include cases, subjects, analytics, and audit information. This layout was chosen because it separates the main user tasks into clear sections and makes the system easier to operate.
+
+The case registry is the central feature of the application. It allows users to view case records, create new cases, edit existing cases, and remove records where appropriate. Case records include structured fields such as case type, status, priority, sensitivity level, department, and descriptive information.
+
+The subject registry provides a separate area for managing individuals or entities linked to case information. The term subject was selected because it is broader and more appropriate than person in an investigative context. A subject may be a suspect, victim, witness, reporter, missing person, or another relevant category.
+
+The bulk import feature was included to allow multiple records to be added quickly. This was useful for testing and demonstration because it allowed the application to operate with a larger dataset. It also helped validate the database, analytics, and audit functionality.
+
+The analytics dashboard was designed to provide summary information from stored records. This supports operational awareness and demonstrates that the platform can do more than store individual records. It can also present useful summaries.
+
+The audit view was designed to support accountability. It allows activity to be reviewed and helps demonstrate that user actions can be recorded. In a real system, this would be essential for investigation review, internal oversight, and compliance.
+
+% Suggested figure:
+% Figure 3.6: Application navigation map showing dashboard, cases, subjects, analytics, and audit.
+% Caption: TAC application design overview.
 
 \section{Database Design Overview}
 
+
+The database design was based on the need to store structured case, subject, and audit information. Microsoft SQL Server was selected to provide persistent relational storage. This allowed the final implementation to move beyond mock data and operate more like a real enterprise system.
+
+At a high level, the database design includes tables for cases, subjects, relationships, and audit records. The cases table stores core case information such as case reference, title, description, type, status, priority, department, and sensitivity. The subjects table stores information about individuals or entities connected to case work. A relationship table can support links between cases and subjects. The audit table stores records of actions performed in the system.
+
+The relational model is suitable because case management data naturally involves relationships. A case may involve multiple subjects, and a subject may be associated with multiple cases. This means the database needs to support structured linking rather than simple isolated records.
+
+The database design also supports validation and analytics. Because records are stored in structured fields, the application can count records, group cases by status or priority, and display useful summaries. The same structure supports bulk import because imported data can be mapped into defined fields.
+
+The database was not designed to be accessed directly by ordinary users. Instead, the web application communicates with SQL Server through backend logic. This supports security because validation, role checking, and audit logging can occur at the application layer before data is written to or retrieved from the database.
+
+% Suggested figure:
+% Figure 3.7: Simple entity relationship diagram showing Cases, Subjects, CaseSubjectLinks, and AuditLogs.
+% Caption: High-level TAC database design.
+
 \section{Monitoring and Audit Design}
 
+Monitoring and audit were included in the design to support visibility and accountability. A secure case management platform should not only prevent unauthorised access; it should also record important activity and provide evidence that controls are working.
+
+The application-level audit design focuses on user actions. Events such as creating a case, updating a subject, deleting a record, or importing data should be recorded. Each audit event should include useful details such as the action performed, the affected record, the user or system identity, and the time of the event.
+
+The infrastructure monitoring design focuses on host and system activity. Wazuh was selected to provide monitoring visibility across supported systems. This allows logs and alerts from servers to be collected and reviewed. While the web application audit log focuses on application actions, Wazuh supports a wider view of the infrastructure.
+
+Together, audit logging and monitoring support accountability. They make it easier to investigate what happened if something goes wrong. They also provide evidence for validation during the project assessment because they show that the system is not operating as a black box.
+
+The design also considers future improvement through stronger audit preservation. In a more mature version of the platform, audit logs could be written to tamper-resistant storage or an append-only object store. This was considered as part of the broader architecture, although the final implemented scope focuses on the core audit and monitoring features.
+
+% Suggested figure:
+% Figure 3.8: Audit and monitoring design showing application audit logs and Wazuh infrastructure monitoring.
+% Caption: Monitoring and audit design for TAC.
+
 \section{High-Level Design Summary}
+
+The high-level design of TAC was shaped by the need to build a secure, realistic, and demonstrable case management platform. The design combines application functionality with infrastructure controls so that the final system is more than a standalone web application.
+
+The selected technologies each serve a specific purpose. Next.js provides the web application and API layer. SQL Server provides persistent structured storage. Active Directory provides centralised identity. ADFS provides claims-based authentication. pfSense and VLANs provide network segmentation and controlled access. Wazuh provides monitoring visibility. SSL/TLS certificates protect communication in transit.
+
+The design follows Zero Trust principles by avoiding automatic trust based on network location. It uses identity verification, least privilege, segmentation, audit logging, and monitoring to reduce risk. The RBAC model ensures that users can be granted access based on role rather than individual manual permissions.
+
+This high-level design provides the foundation for the detailed systems architecture in the next chapter. Chapter Four explains how the selected technologies were arranged into a complete infrastructure and software architecture, including network layout, identity services, database design, web application structure, firewalling, and monitoring.
+
+% Suggested table:
+% Table 3.3: High-level design summary mapping requirements to design decisions.
+% Columns: Requirement Area, Design Decision, Technology Used, Benefit.
