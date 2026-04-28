@@ -1,35 +1,272 @@
-% SystemsArchitecture.tex
 
 \raggedright
 
 \section{Overview of Systems Architecture}
+This chapter presents the detailed systems architecture for TAC. While the previous chapter explained the high-level design choices and technology rationale, this chapter describes how those choices were arranged into a complete working architecture. The system architecture combines infrastructure, identity, network security, database services, monitoring, and web application components into one integrated environment.
+
+The final architecture was designed to reflect a realistic enterprise-style deployment rather than a simple standalone web application. TAC is hosted as an internal case management platform supported by segmented networking, centralised identity, federated authentication, SQL backed data storage, SSL/TLS encryption, audit logging, and infrastructure monitoring. This layered approach was selected because the platform is intended to handle sensitive investigative style data where access, accountability, and control are important.
+
+The architecture is divided into two main areas. The first area is the infrastructure architecture, which includes the virtualisation platform, pfSense firewall, VLANs, Windows Server systems, Active Directory, ADFS, SQL Server, Linux web hosting, and Wazuh monitoring. The second area is the software architecture, which includes the Next.js application, API layer, database interaction, role-based access model, case registry, subject registry, bulk import, analytics, and audit logging.
+
+A key principle of the architecture is that no single layer is responsible for all security. Instead, the system uses multiple controls that support each other. The firewall limits unnecessary network paths. Active Directory provides identity. ADFS supports federated authentication and claims. The application enforces role aware access. SQL Server stores persistent records. Audit logs record user activity. Wazuh provides infrastructure visibility. SSL/TLS protects traffic in transit.
+
+The result is a system architecture that demonstrates both software development and infrastructure security. This is important because the project aims to show how a secure case management platform can be designed as a complete environment rather than as an isolated application.
+
+% Suggested figure:
+% Figure 4.1: Full TAC system architecture diagram.
+% Caption: Overall system architecture showing users, pfSense, VLANs, Active Directory, ADFS, web app, SQL Server, and Wazuh.
 
 \section{Physical and Virtual Infrastructure}
 
+The physical and virtual infrastructure was built using a lab-based environment designed to simulate a small enterprise network. The use of virtualisation allowed multiple systems to be deployed for different roles without requiring a separate physical server for every component. This made it possible to create a realistic infrastructure while keeping the project achievable within the available hardware.
+
+Proxmox was used as the main virtualisation platform for hosting the project services. Virtual machines were used to separate major system roles such as Windows Server infrastructure, SQL Server, Linux application hosting, firewalling, and security monitoring. This approach provided flexibility because each service could be installed, configured, tested, and modified independently.
+
+The infrastructure included Windows Server systems for Active Directory, ADFS, DNS, certificate related services, and SQL Server. A Linux server was used to host the Next.js web application. pfSense was used as the routing and firewall layer between VLANs. Wazuh was included to provide monitoring and security visibility across selected hosts.
+
+This separation of services was important for the project because it avoided placing all components on a single machine. For example, the web application and SQL Server were hosted separately. This means the web application server communicates with the database over the internal network rather than storing data locally. This is closer to how enterprise systems are normally deployed and also allows the network path between the application and database to be controlled and tested.
+
+The virtual infrastructure also helped support validation. Individual systems could be tested for connectivity, DNS resolution, certificate trust, authentication, and firewall behaviour. If an issue occurred, it could be isolated to a particular virtual machine, VLAN, or service. This was especially useful during the implementation of domain trust, ADFS authentication, SQL connectivity, and firewall access rules.
+
+% Suggested figure:
+% Figure 4.2: Proxmox virtual infrastructure layout.
+% Caption: Virtual machine layout used to host TAC infrastructure components.
+
 \section{Network Architecture}
+
+The network architecture was designed around segmentation and controlled communication. Rather than placing all project systems on a single flat subnet, the environment was divided into separate logical networks. This allowed user traffic, server traffic, management traffic, and security monitoring traffic to be controlled more carefully.
+
+pfSense acted as the central routing and firewall platform. It controlled traffic between VLANs and provided the main point where network policy could be applied. This allowed the project to implement rules such as allowing users to reach the web application while preventing users from directly connecting to SQL Server. This design reflects the principle that systems should only be reachable where there is a valid business or technical requirement.
+
+The network was designed so that the web application is the main user-facing system. Users interact with the TAC platform through HTTPS. The web server then communicates with SQL Server through a controlled backend connection. Identity services such as Active Directory and ADFS operate as supporting services for authentication and role mapping. Monitoring systems observe activity across the environment.
+
+This design reduces exposure because backend services do not need to be directly accessible to ordinary users. SQL Server, domain services, and management interfaces are kept away from general user access. This helps reduce the attack surface and limits the number of systems a user device can reach.
+
+The network architecture also supports future expansion. Additional services could be added into the correct network zone without redesigning the entire environment. For example, a future evidence storage service, backup service, or additional monitoring sensor could be placed into the server or security VLAN and controlled through firewall rules.
+
+% Suggested figure:
+% Figure 4.3: Network architecture diagram showing traffic paths between user VLAN, server VLAN, management VLAN, and security monitoring.
+% Caption: TAC network architecture and controlled communication paths.
 
 \section{VLAN Architecture}
 
+VLAN segmentation was used to divide the network into logical zones. This was a major part of the system architecture because it allowed the project to demonstrate network level separation between different types of systems and users. The VLAN design supports the Zero Trust approach by ensuring that network location alone does not provide unlimited access.
+
+The main VLANs used in the design were production users, server infrastructure, security and management, and VPN or administrative access. Each VLAN had a defined purpose. The production user VLAN represented normal users accessing the system. The server VLAN hosted backend services such as the web application, SQL Server, domain services, and supporting infrastructure. The security and management VLAN was used for administrative and monitoring functions. The VPN or administrative access VLAN represented controlled remote or privileged access paths.
+
+This design provides several advantages. First, it reduces unnecessary broadcast and routing exposure between systems. Second, it allows pfSense firewall rules to define which VLANs can communicate. Third, it creates clearer troubleshooting boundaries because each service belongs to a known network zone. Fourth, it supports security testing because traffic between zones can be validated.
+
+The VLAN design also helped protect SQL Server. In the final architecture, SQL Server is not treated as a general user facing service. It belongs to the backend infrastructure and is reached by the web application server. Ordinary users should not connect directly to the SQL database. This ensures that the application remains the controlled access point for case and subject records.
+
+A simplified representation of the VLAN model is shown below.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3cm}|p{4cm}|p{7cm}|}
+\hline
+\textbf{VLAN} & \textbf{Purpose} & \textbf{Example Systems or Users} \\
+\hline
+VLAN 20 & Production Users & Standard user devices accessing the TAC web application \\
+\hline
+VLAN 31 & Server Network & Web application server, SQL Server, Active Directory, ADFS, backend services \\
+\hline
+VLAN 40 & Security / Management & Administrative systems, monitoring, management access \\
+\hline
+VLAN 50 & VPN / Admin Access & Controlled remote or privileged access path \\
+\hline
+\end{tabular}
+\caption{TAC VLAN architecture summary}
+\end{table}
+
+% Suggested figure:
+% Figure 4.4: VLAN architecture diagram.
+% Caption: VLAN segmentation used in the TAC infrastructure.
+
 \section{Firewall and Routing Architecture}
+
+The firewall and routing architecture was implemented through pfSense. pfSense acted as the central control point for traffic between VLANs. This was important because the system required controlled communication between users, servers, management systems, and monitoring components.
+
+The firewall policy followed a default deny mindset. Traffic should only be allowed where there is a defined requirement. For example, users need to access the web application over HTTPS, but they do not need direct access to SQL Server. The web application server needs access to SQL Server, but SQL Server does not need to initiate arbitrary connections to user devices. Administrative access should be restricted to management or VPN paths.
+
+This rule structure supports least privilege at the network level. It prevents unnecessary access and makes the system easier to reason about. If a service is not required between two zones, it should remain blocked. This helps reduce the impact of compromised endpoints because an attacker cannot automatically move from one system to every other system.
+
+The firewall architecture also supports validation. Network tests can be performed to confirm whether expected traffic is allowed and unexpected traffic is blocked. For example, testing can confirm that the web server can reach SQL Server on the required database port, while a production user device cannot directly connect to that same SQL service.
+
+Firewall logging also provides useful evidence during troubleshooting and testing. If traffic is blocked unexpectedly, logs can help identify whether the issue is caused by routing, DNS, firewall policy, service configuration, or host-level restrictions.
+
+The routing design therefore acts as a bridge between security requirements and practical implementation. It allows required services to communicate while keeping unnecessary paths closed.
+
+% Suggested table:
+% Table 4.2: Firewall rule summary.
+% Columns: Source Zone, Destination Zone, Service, Action, Reason.
 
 \section{Active Directory Architecture}
 
+Active Directory Domain Services formed the identity foundation of the TAC environment. It was used to provide centralised users, groups, domain authentication, DNS integration, organisational structure, and policy control. This allowed the project to model a realistic enterprise identity system rather than relying on application-only accounts.
+
+The Active Directory architecture included domain users and security groups representing different access levels. These groups were designed to support the role-based access control model used by the TAC application. Instead of assigning permissions directly to individual users in the application, users could be placed into relevant Active Directory groups. These groups could then be mapped to application roles through the identity and claims process.
+
+Organisational Units were used to structure users, groups, devices, and service accounts. This made the environment easier to manage and helped represent the idea that different departments, bureaus, or user types may require different policies and permissions. In a larger deployment, this structure could be expanded to support separate administrative boundaries, delegated control, and more detailed Group Policy application.
+
+Active Directory also provided DNS services required by the environment. Reliable DNS was important for domain authentication, ADFS access, web application access, and server-to-server communication. Many infrastructure services depend on correct name resolution, so DNS formed a critical part of the architecture.
+
+Group Policy was also relevant to the architecture. While the final report focuses mainly on the case management platform, Group Policy supports the wider security model by allowing domain joined systems to receive consistent policy settings. These may include password policies, lockout policies, firewall settings, certificate trust, and other security controls.
+
+Active Directory therefore provided the identity and policy layer required for the TAC platform. It allowed the system to demonstrate identity-centric security through domain users, groups, and centralised administration.
+
+% Suggested figure:
+% Figure 4.5: Active Directory OU and group structure.
+% Caption: Active Directory structure supporting TAC identity and access control.
+
 \section{Domain Trust Architecture}
+
+The project included a multi-domain design to represent separation between different organisational environments. The use of multiple domains allowed the project to explore how identities from different parts of an organisation could interact with shared services. This is relevant to the TAC concept because a secure case management platform may need to support users from different internal departments or partner style environments.
+
+The domain trust architecture was designed so that users from one trusted domain could authenticate and access resources where permitted. This required DNS resolution between domains, correct time synchronisation, and properly configured trust relationships. These dependencies were important during implementation because authentication systems such as Kerberos are sensitive to time, DNS, and trust configuration.
+
+The trust design supported the wider identity centric model. Rather than creating duplicate accounts for every user inside the application, the system could rely on directory identities and group membership. In a real environment, this would reduce administrative overhead and improve access management.
+
+A key lesson from the domain trust work was that identity infrastructure depends heavily on supporting services. Domain trust is not only a checkbox configuration. It requires correct DNS forwarding, reachable domain controllers, synchronised system time, and firewall rules that allow required domain traffic. If any of these supporting elements fail, authentication and trust validation can fail.
+
+The domain trust architecture therefore strengthened the project by demonstrating the complexity of real enterprise identity systems. It also supported the idea that secure application access depends on a reliable identity infrastructure underneath.
+
+% Suggested figure:
+% Figure 4.6: Domain trust diagram showing TACCENTRAL.COM and TACCORP.COM trust relationship.
+% Caption: Domain trust architecture used to support cross-domain identity access.
 
 \section{ADFS and Federation Architecture}
 
+Active Directory Federation Services was included to provide a federated identity layer for the TAC platform. ADFS allows authentication to be handled by a trusted identity provider and allows identity information to be passed to an application as claims. This was important because the project aimed to demonstrate identity centric access rather than local application only login.
+
+In the TAC architecture, ADFS acts as the bridge between Active Directory and the web application. Users authenticate using domain identity. ADFS then issues claims that can represent information such as the user identity, group membership, or role-related attributes. The application can use these claims to make authorisation decisions.
+
+Federation supports several security and operational benefits. First, it centralises authentication instead of creating separate credentials inside the application. Second, it allows access to be managed through Active Directory groups. Third, it supports single sign-on style behaviour in an enterprise environment. Fourth, it creates a stronger foundation for future improvements such as multi factor authentication or conditional access-style rules.
+
+The ADFS architecture required secure communication through SSL/TLS certificates. Federation services must be trusted by clients and applications, so certificate configuration was an important part of the design. The web application also needed an appropriate callback or redirect configuration so that the authentication flow could return users to the correct application endpoint after sign-in.
+
+The federation model also fits the Zero Trust approach. Access is not granted simply because a user is on the network. The user must authenticate through a trusted identity service, and the application must interpret the resulting identity information before allowing access to protected functions.
+
+% Suggested figure:
+% Figure 4.7: ADFS authentication flow.
+% Caption: Federated authentication flow between Active Directory, ADFS, and the TAC web application.
+
 \section{Web Application Architecture}
+
+The TAC web application was built using Next.js. It provides the user facing interface for managing cases, subjects, analytics, audit logs, and bulk import workflows. The application is structured as a dashboard-style system, with separate sections for the major areas of functionality.
+
+The web application architecture includes frontend pages, reusable user interface components, server-side logic, API routes, and database access functions. This structure made it possible to develop the system iteratively. Early versions of the application used mock data to validate layout and user flows. Later versions moved toward SQL backed API routes so that data could be stored persistently.
+
+The dashboard shell provides the main layout for the application. It includes navigation links to the case registry, subject registry, analytics dashboard, and audit area. This consistent layout improves usability because users can move between system areas without needing to understand the technical backend.
+
+The case registry is responsible for displaying case records and allowing users with appropriate permissions to create, edit, and delete cases. The subject registry performs a similar role for subject records. Detail pages provide more focused views of individual records. Forms are used for structured input so that records follow the expected data model.
+
+The application communicates with SQL Server through backend logic rather than allowing users to access the database directly. This is important because the application can validate input, enforce permissions, create audit records, and handle errors before data is written to the database.
+
+The web application therefore acts as the controlled user-facing layer of the architecture. It provides usability while relying on the identity, database, network, and monitoring layers for security and reliability.
+
+% Suggested figure:
+% Figure 4.8: Web application architecture showing pages, components, API routes, and SQL connection.
+% Caption: Next.js web application architecture for TAC.
 
 \section{API Architecture}
 
+The API architecture provides the controlled connection between the frontend application and the SQL Server database. Rather than having frontend pages connect directly to the database, the application uses backend routes to process requests. This improves security, maintainability, validation, and auditability.
+
+The API routes handle operations such as retrieving case records, creating new cases, updating existing cases, deleting records, importing data, retrieving subject records, and recording audit activity. Each route has a defined purpose and can be tested independently.
+
+This architecture helps enforce separation of responsibility. The frontend is responsible for presenting forms, tables, buttons, and navigation to the user. The API layer is responsible for processing requests, validating data, interacting with SQL Server, and returning controlled responses. The database is responsible for storing persistent records.
+
+The API layer is also important for role-based access control. In a secure design, access control should not exist only in the visible user interface. Hiding a button is useful for usability, but it is not enough for security. Backend routes must also check whether the user or role is allowed to perform an action. This prevents users from bypassing the interface and calling protected operations directly.
+
+Error handling is another important part of the API architecture. If SQL Server is unavailable, if a record is missing, or if submitted data is invalid, the API should return controlled errors rather than exposing sensitive internal details. This improves both security and usability.
+
+The API architecture therefore provides the controlled backend layer required to connect the user interface to persistent storage while supporting validation, access control, and audit logging.
+
+% Suggested figure:
+% Figure 4.9: API request flow from browser to Next.js API route to SQL Server.
+% Caption: API architecture used for controlled database access.
+
 \section{SQL Server Architecture}
 
-\section{Kasm Virtual Access Architecture}
+Microsoft SQL Server was used as the persistent data store for the TAC platform. SQL Server was hosted separately from the web application to reflect a realistic enterprise architecture where the application and database tiers are separated.
+
+The SQL Server architecture included a dedicated database for the TAC system. The database stores structured records for cases, subjects, and audit activity. This structure allows the application to persist records, retrieve them later, and support analytics based on the stored data.
+
+The case table stores the main case management information. This includes fields such as case reference, case title, case type, case status, priority, sensitivity level, department, description, and timestamps. The subject table stores information about subjects connected to investigative records. A linking table can support relationships between cases and subjects. An audit table records user or system actions.
+
+Separating the database from the application provides several advantages. It allows the database server to be placed in a protected server VLAN. It allows firewall rules to restrict who can connect to SQL Server. It prevents ordinary users from directly browsing or modifying the database. It also makes the architecture easier to expand in future.
+
+The application connects to SQL Server using backend database logic. Connection handling is designed to avoid repeatedly creating unnecessary database connections. This supports reliability and performance during normal use.
+
+The SQL architecture also supports bulk import and analytics. Imported records can be inserted into structured tables, and dashboard summaries can be generated from SQL queries. This made the database layer central to the final implementation because it moved the platform beyond a visual prototype into a persistent working system.
+
+% Suggested figure:
+% Figure 4.10: SQL Server database architecture or entity relationship diagram.
+% Caption: SQL Server architecture supporting case, subject, relationship, and audit data.
+
 
 \section{Wazuh Monitoring Architecture}
 
+Wazuh was included as the monitoring component of the TAC infrastructure. Its purpose was to provide visibility over selected systems and support the wider security monitoring requirement. While the application audit log records user-level actions inside TAC, Wazuh provides infrastructure level visibility.
+
+The monitoring architecture is based on the idea that important systems should not operate without oversight. Servers such as the web application host, Windows Server systems, and other infrastructure components can generate logs and events that may indicate normal activity, configuration issues, or potential security problems. Wazuh helps collect and analyse this type of information.
+
+In the TAC architecture, Wazuh supports host based monitoring and security event visibility. This allows the project to demonstrate that the infrastructure is not treated as invisible background. Instead, systems are monitored as part of the security design.
+
+Monitoring is especially important in a Zero Trust style environment because verification and visibility are core ideas. It is not enough to configure controls once and assume they work forever. Logs and events help confirm that systems are operating and that activity can be reviewed.
+
+Wazuh also supports validation. During testing, generated activity can be observed and screenshots can be captured as evidence. This helps show that the monitoring layer was not only included in the design but also connected to the implemented environment.
+
+The monitoring architecture could be expanded in future with custom detection rules, alerting, dashboard improvements, and integration with audit storage. However, the final project focuses on demonstrating the monitoring foundation and its relationship to the rest of the TAC environment.
+
+% Suggested figure:
+% Figure 4.11: Wazuh monitoring architecture showing agents and manager.
+% Caption: Wazuh monitoring architecture used for TAC infrastructure visibility.
+
 \section{MinIO Audit Storage Architecture}
+
+Audit storage was included in the architecture because TAC is designed around sensitive case and subject records. A system that manages sensitive information must be able to provide a record of important actions. Audit logs help answer questions such as who created a case, who updated a subject, who imported records, and when a change occurred.
+
+The application-level audit architecture focuses on recording user actions inside the TAC platform. These events can be stored in SQL Server as part of the application database. Each event should contain enough information to support accountability, such as action type, affected record, timestamp, and user identity where available.
+
+The architecture also considered future stronger audit preservation. For example, in a more mature version of the system, audit records could be copied or written to append-only storage so that they are harder to alter after creation. MinIO-style object storage with retention or object lock concepts was considered as a future enhancement for this purpose. However, the implemented scope of this report focuses on the core application audit logging and monitoring foundation unless otherwise shown in validation evidence.
+
+This distinction is important because audit design and implemented audit features must be clearly separated. The final system demonstrates audit visibility through the application and monitoring layers, while tamper resistant audit storage remains a potential future improvement unless fully implemented and tested.
+
+The audit storage architecture therefore supports both the current implementation and the future direction of the platform. In the current implementation, audit logs support accountability and testing. In a future production-grade version, audit records could be strengthened with immutable storage, retention policies, cryptographic signing, or external log forwarding.
+
+% Suggested figure:
+% Figure 4.12: Audit storage flow showing application audit events stored in SQL and future append-only storage option.
+% Caption: Audit storage architecture and future tamper-resistant enhancement path.
 
 \section{Disaster Recovery and Business Continuity Architecture}
 
+Business continuity and disaster recovery were considered at a high level because a case management platform may become operationally important once deployed. If users depend on the system to access case and subject records, then outages, data loss, or infrastructure failure could have a serious impact.
+
+The business continuity design focuses on keeping the system available and recoverable. In the context of TAC, this includes considering the availability of the web application, SQL Server database, Active Directory, ADFS, DNS, firewall, and monitoring components. If any of these services fail, users may lose access to the platform or authentication may stop working.
+
+The disaster recovery design considers how the system could be restored after failure. Important recovery areas include virtual machine backups, SQL Server database backups, configuration backups for pfSense, Active Directory system state backups, certificate backups, and application source code stored in GitHub. These controls would allow the environment to be rebuilt or restored if a system became corrupted or unavailable.
+
+The project also considered the importance of documentation. A disaster recovery plan is weaker if configuration details are not recorded. IP addressing, VLAN assignments, firewall rules, DNS names, certificate details, database connection settings, and server roles should be documented so that the environment can be recreated if required.
+
+Although a full enterprise grade disaster recovery implementation was outside the final project scope, the architecture was designed with recovery in mind. The use of separate systems, source control, persistent SQL storage, and virtualisation all support future recovery planning.
+
+This section is included because secure systems must consider availability as well as confidentiality and integrity. A system can have strong access control, but if it cannot be recovered after failure, it is not suitable for serious operational use.
+
+% Suggested table:
+% Table 4.3: Business continuity and disaster recovery considerations.
+% Columns: Component, Risk, Recovery Approach, Future Improvement.
+
 \section{Systems Architecture Summary}
+
+The TAC systems architecture combines infrastructure security and application design into a single integrated platform. The architecture uses virtualisation to host multiple services, pfSense to control routing and firewall rules, VLANs to separate network zones, Active Directory to manage identity, ADFS to support federated authentication, SQL Server to store persistent records, Next.js to provide the web application, and Wazuh to provide monitoring visibility.
+
+The architecture supports the main project requirements identified earlier in the report. It provides a secure web platform for case and subject management. It supports centralised identity and role based access. It protects backend services through network segmentation and firewall policy. It stores records persistently in SQL Server. It supports audit logging and monitoring. It also considers data protection, accountability, and future disaster recovery.
+
+A major strength of the architecture is that it avoids relying on one security control. Instead, it uses a layered model. A user must authenticate. The application must authorise actions. The firewall must allow the required network path. The database is kept behind the application. Activity can be logged and monitored. This makes the system more realistic and more defensible than a simple single-server prototype.
+
+The architecture also provides a strong foundation for validation. Each major component can be tested: VLANs, firewall rules, DNS, ADFS, SSL/TLS, SQL connectivity, application functions, audit logging, and monitoring. The next chapters build on this architecture by explaining the prototyping process, implementation details, and validation results.
+
+% Suggested figure:
+% Figure 4.13: Final system architecture summary diagram.
+% Caption: Final TAC architecture showing the relationship between infrastructure, identity, application, database, and monitoring layers.
