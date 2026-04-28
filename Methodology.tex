@@ -1,0 +1,30 @@
+\section{Architecture-First Design Approach}
+
+This project adopts an architecture-first design approach, prioritizing the definition of a
+secure and governable system architecture before extensive implementation \cite{sommervilleESP}. This
+methodology is particularly suited to security-critical systems, where early architectural
+decisions directly influence access control effectiveness, auditability, and threat
+mitigation.
+
+Core architectural elements including network segmentation, identity and access
+management, privileged access pathways, and monitoring are defined and evaluated at
+a high level prior to development. This ensures that design decisions are intentional,
+defensible, and aligned with established security principles rather than emerging
+organically through feature-driven implementation.
+
+By treating architecture as the primary artifact of Semester One, the project emphasis's
+that secure systems are achieved through correct foundational design rather than
+retrofitted controls.
+
+
+\section{Iterative Validation and Prototyping}
+
+While Semester One is design-focused, key architectural assumptions are validated
+through limited and targeted prototyping. This allows feasibility and constraints to be
+identified without committing to full-scale implementation.
+
+Validation activities include testing logical network segmentation, verifying secure
+remote and privileged access pathways, confirming identity-based authentication flows,
+and validating centralized log collection. These prototypes are treated as disposable
+validation artifacts rather than production components, with outcomes feeding directly
+back into architectural refinement. All documentation and technical artefacts are maintained under version control with regular incremental commits.

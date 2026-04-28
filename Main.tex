@@ -1,0 +1,189 @@
+%-------------------------------------------------------------------------------
+% TEMPLATE FOR ITU HWs and Assignments
+% (c) Javad Ibrahimli, 2023
+%-------------------------------------------------------------------------------
+
+\documentclass[12pt]{report}
+\author{Javad Ibrahimli}
+
+% Inputs the Document Packages
+\input{_Packages}
+
+% titlesec MUST be loaded once, in the preamble
+\usepackage{titlesec}
+
+% Controls numbering depth
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+% Line Spacing
+\setstretch{1.5}
+
+% ToC numbering dots
+\renewcommand{\cftchapaftersnum}{.}
+\renewcommand{\cftsecaftersnum}{.}
+\renewcommand{\cftsubsecaftersnum}{.}
+\renewcommand{\cftdotsep}{0.3}
+
+% Line break / justification control
+\tolerance=1
+\emergencystretch=\maxdimen
+\hyphenpenalty=10000
+\hbadness=10000
+
+% ToC / List titles
+\renewcommand{\contentsname}{\bfseries\LARGE CONTENTS}
+\renewcommand{\listfigurename}{\bfseries\LARGE LIST OF FIGURES}
+
+% Signature block
+\newbox\namebox
+\newdimen\signboxdim
+\def\signature#1{%
+  \setbox\namebox=\hbox{#1}
+  \signboxdim=\dimexpr(\wd\namebox+3cm)
+  \parbox[t]{\signboxdim}{%
+    \centering
+    \hrulefill\\
+    #1
+  \par}%
+}
+
+% ------------------ TITLE FORMATTING (SINGLE SOURCE OF TRUTH) ------------------
+
+\titleformat{\chapter}
+  {\normalfont\bfseries\LARGE\raggedright}
+  {\thechapter.}
+  {1em}
+  {}
+
+\titleformat{\section}
+  {\normalfont\bfseries\Large\raggedright}
+  {\thesection.}
+  {1em}
+  {}
+\titlespacing*{\section}{0pt}{0pt}{15pt}
+
+\titleformat{\subsection}
+  {\normalfont\bfseries\large\raggedright}
+  {\thesubsection.}
+  {1em}
+  {}
+\titlespacing*{\subsection}{0pt}{10pt}{10pt}
+
+\titleformat{\subsubsection}
+  {\normalfont\bfseries\large\raggedright}
+  {\thesubsubsection.}
+  {1em}
+  {}
+\titlespacing*{\subsubsection}{0pt}{10pt}{10pt}
+
+% ------------------ HEADER / FOOTER ------------------
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\thepage}
+
+% Figure numbering
+\numberwithin{figure}{chapter}
+
+% Glossaries
+\makeglossaries
+\newacronym{US}{US}{Ultrasound}
+
+% ------------------ DOCUMENT START ------------------
+
+\setlength{\parskip}{1.5em}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+% ------------------ TITLE PAGE ------------------
+\begin{titlepage}
+\end{titlepage}
+
+\thispagestyle{empty}
+
+\begin{center}
+  \vspace{1cm}
+  {\relscale{1.4}\textbf{TAC Industries: Designing A Zero Platform\\}}
+  \vspace{0.3cm}
+  {\relscale{1.20}\textbf{An Identity Centric Case Management System\\}}
+  \vspace{1.8cm}
+
+  {\begin{singlespace}BSc’s in (Computer Forensics \& Security)\\\end{singlespace}}
+  {\begin{singlespace}Course SE602\\\end{singlespace}}
+  \vspace{0.9cm}
+
+  {\relscale{1.00}{A PROJECT REPORT BY}}\\
+  \& Support Of\\
+  \vspace{0.9cm}
+  Jabez Jacob Dickson\\ Supervisor: Jerry Horgan\\
+  \vspace{1.5cm}
+
+  \includegraphics[width=6cm]{Images/picture1.png}
+\end{center}
+
+{\raggedleft\vfill
+\begin{singlespace}
+Department of Science and Computing \\
+South East Technological University | Waterford
+\end{singlespace}
+}
+
+% ------------------ DECLARATION ------------------
+\newpage
+\chapter*{Declaration}
+\addcontentsline{toc}{chapter}{Declaration}
+I, Jabez Jacob Dickson confirm that the work presented in this report is my own. Where information has been derived from other sources, I confirm that this has been indicated in the report.
+\vspace*{3cm}
+
+\noindent\signature{Jabez Jacob Dickson}
+\newpage
+
+
+% ------------------ TABLE OF CONTENTS ------------------
+\tableofcontents
+
+% ------------------ CHAPTERS (UNCHANGED) ------------------
+
+\chapter{Introduction}
+\input{Introduction}
+
+\chapter{Project Description (WHAT)}
+\input{ProjectDescription}
+
+\chapter{Background Research & Design Rationale (WHY)}
+\input{BackgroundResearchandDesignRationale}
+
+\chapter{Methodology}
+\input{Methodology}
+
+\chapter{High-Level System Architecture (HOW)}
+\input{HighLevelSystemArchitecture}
+
+\chapter{Network & Infrastructure Design}
+\input{NetworkandInfrastructureDesign}
+
+\chapter{Identity & Access Management Design}
+\input{IdentityandAccessManagementDesign}
+
+\chapter{Application Data Model Overview}
+\input{ApplicationDataModelOverview}
+
+\chapter{Monitoring, Management & Validation}
+\input{MonitoringManagementValidation}
+
+\chapter{Reflection & Semester Two Plan}
+\input{ReflectionandSemesterTwoPlan}
+
+\chapter{Conclusion}
+\input{Conclusion}
+
+% ------------------ REFERENCES ------------------
+\newpage
+\bibliographystyle{ieeetr}
+\bibliography{References}
+\addcontentsline{toc}{chapter}{References}
+
+\end{document}

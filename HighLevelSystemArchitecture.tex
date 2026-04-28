@@ -1,0 +1,19 @@
+\section{Platform Overview}
+
+TAC Industries is designed as a layered, security-centric platform that separates infrastructure, identity enforcement, and application data handling into clearly defined architectural components. The system follows the principle that reachability does not imply permission, ensuring that access to network resources does not automatically grant access to sensitive systems or data.
+
+At a high level, the platform consists of three logical layers. The infrastructure layer provides segmented network connectivity, virtualised hosting, and perimeter enforcement. The identity and access layer acts as the central control point for authentication, authorisation, and policy enforcement across all services. The application and data layer hosts the case management system and associated data stores, enforcing role-aware and context-aware access controls.
+
+\section{Environment Separation and Trust Zones}
+
+The architecture deliberately separates the platform into multiple environments and trust zones to limit blast radius and prevent lateral movement. User devices, administrative access pathways, core services, and guest connectivity are isolated using logical segmentation rather than relying on a flat network model.
+
+Operational users and analysts access the system through restricted application entry points without direct connectivity to core servers. Administrative access is routed through a controlled bastion environment, ensuring that privileged actions are brokered and auditable. Core services such as directory services, authentication brokers, databases, and application servers are placed in protected zones that are never directly accessible from user or VPN networks.
+
+Guest and unmanaged devices are isolated into separate network segments with no access to internal services. Inter-zone communication is explicitly defined and deny-by-default, with firewall rules permitting only the minimum required traffic between zones. This design enforces Zero Trust principles at the network level while supporting controlled operational access.
+
+\section{Design Assumptions and Constraints}
+
+The platform is designed and validated within a constrained, self-hosted environment using commodity hardware\cite{dell}. Multiple Dell OptiPlex systems are repurposed to host virtualised services, reflecting realistic small enterprise deployment constraints.
+
+The platform is designed for a controlled enterprise environment with a limited number of users and administrators, reflecting a realistic investigative or research deployment rather than a public-facing system. All data handled by the system is synthetic and used solely for academic demonstration purposes. The design prioritises architectural correctness and security governance over feature completeness.
