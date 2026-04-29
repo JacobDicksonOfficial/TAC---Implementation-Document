@@ -1,9 +1,155 @@
 \raggedright
 
-\section{Application Functionality Validation}
-
 \section{Identity and RBAC Validation}
 
-\section{Database and Audit Validation}
+Identity and RBAC validation was carried out using three dedicated test identities. Each account was assigned a department value and one TAC CMS role group in Active Directory. The purpose of the test was to confirm that ADFS authentication worked and that the TAC CMS received the correct department and role claims for access control.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{2.7cm}|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{3cm}|>{\raggedright\arraybackslash}p{4.2cm}|>{\centering\arraybackslash}p{1.4cm}|}
+\hline
+\textbf{Test Account} & \textbf{Department Claim} & \textbf{Role Claim} & \textbf{Expected Access} & \textbf{Result} \\
+\hline
+test.intel & TINTEL & TAC-INTEL-READ & Read focused access to registry information with no create, edit, or delete permissions. & Pass \\
+\hline
+test.ops & TNSU & TAC-OPS-CR & Operational create and read access with restricted modification and no delete access. & Pass \\
+\hline
+test.lead & TNCCB & TAC-LEAD-CRUD & Full case and subject access including create, read, update, delete, analytics, and audit visibility. & Pass \\
+\hline
+\end{tabular}
+\caption{Identity and RBAC validation accounts used for TAC CMS testing}
+\label{tab:identity-rbac-validation-accounts}
+\end{table}
+
+The department claim was included because TAC CMS access is not based on role alone. The role claim controls what a user can do, while the department claim supports bureau or operational area scoping. This means a user can be assigned an application permission level while still being linked to a department such as TINTEL or TNCCB etc.
+
+
+
+The TAC-LEAD-CRUD account validated the highest normal application role. This account was expected to have full create, read, update, delete, analytics, and audit access.
+
+The validation and examples below confirms that TAC CMS authentication and role assignment worked as intended. Each test identity authenticated through the federated identity flow and received access based on its assigned department and role claims.
+
+\subsection{TAC-INTEL-READ Validation}
+
+The test.intel account was created to validate read-only TAC CMS access. The account was assigned the TINTEL department value and added to the TAC-INTEL-READ role group.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/rbac_intel_user_created.png}
+        \caption*{(a) Test identity created in Active Directory}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/rbac_intel_group_membership.png}
+        \caption*{(b) Department value set to TINTEL}
+    \end{minipage}
+
+    \vspace{0.4cm}
+
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/rbac_intel_department_claim.png}
+        \caption*{(c) User added to TAC-INTEL-READ}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/rbac_intel_web_access.png}
+        \caption*{(d) TAC CMS read-only access validated}
+    \end{minipage}
+
+    \caption{TAC-INTEL-READ identity and access validation.}
+    \label{fig:rbac-intel-validation}
+\end{figure}
+
+\subsection{TAC-OPS-CR Validation}
+
+The test ops account was used to validate the TAC-OPS-CR role. This role was expected to allow operational access to the TAC CMS while still restricting higher privilege actions. Validation focused on confirming that the user could sign in successfully and use permitted parts of the application, while restricted actions remained blocked by the role-based access model.
+
+The first validation check confirmed that delete privileges were not available to the TAC-OPS-CR account. When the user attempted to delete a subject record, the application displayed a permission denial message rather than allowing the action to proceed.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/rbac_ops_delete_denied.png}
+    \caption{TAC-OPS-CR account denied permission when attempting to delete a subject record.}
+    \label{fig:rbac-ops-delete-denied}
+\end{figure}
+
+The second validation check confirmed that higher level analytical functionality was not exposed to this role. The analytics option was not available to the user, and the side navigation remained limited to the functions permitted for the assigned operational role.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/rbac_ops_no_analytics_hidden_nav.png}
+    \caption{TAC-OPS-CR account showing restricted navigation with analytics functionality hidden.}
+    \label{fig:rbac-ops-no-analytics}
+\end{figure}
+
+The final validation check confirmed that the account could still access permitted data while remaining restricted from unauthorised records. The user was able to open and view a subject record, but when attempting to open a case outside the permitted scope, the application returned an access denial message.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/rbac_ops_subject_view_case_denied.png}
+    \caption{TAC-OPS-CR account permitted to view a subject record but denied access to a restricted case.}
+    \label{fig:rbac-ops-scope-restriction}
+\end{figure}
+
+These results confirmed that the TAC-OPS-CR role was being enforced correctly. The account could authenticate and use the parts of the TAC CMS intended for operational work, but delete actions, analytics visibility, and access to restricted case content remained controlled by role and scope.
+
+\subsection{TAC-LEAD-CRUD Validation}
+
+The test lead account was used to validate the TAC-LEAD-CRUD role. This role represented the highest normal application permission level in the TAC CMS. The account was expected to have full case and subject access, including registry viewing, analytics visibility, audit visibility, editing, and delete or archive actions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/rbac_lead_subject_view_access.png}
+    \caption{TAC-LEAD-CRUD account showing access to the subject registry and subject records.}
+    \label{fig:rbac-lead-subject-view-access}
+\end{figure}
+
+The first validation check confirmed that the TAC-LEAD-CRUD account could view subject records within the TAC CMS. The side navigation also displayed the additional privileged sections available to this role.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/rbac_lead_analytics_access.png}
+    \caption{TAC-LEAD-CRUD account showing access to TAC CMS analytics.}
+    \label{fig:rbac-lead-analytics-access}
+\end{figure}
+
+The second validation check confirmed that analytics functionality was available to the TAC-LEAD-CRUD account. This contrasted with the restricted operational role, where analytics access was not exposed.
+
+\vspace{1cm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/rbac_lead_delete_access (1).png}
+    \caption{TAC-LEAD-CRUD account showing permission to initiate archive or delete action on a case record.}
+    \label{fig:rbac-lead-delete-access}
+\end{figure}
+
+The final validation check confirmed that the TAC-LEAD-CRUD account could initiate higher risk case management actions. The archive/delete confirmation prompt appeared for this role, showing that the application recognised the account as having elevated case lead permissions.
+
+These results confirmed that the TAC-LEAD-CRUD role was enforced correctly. Unlike restricted roles, the case lead account could access analytics, view operational records, and perform privileged management actions.
+
+\section{Audit Validation}
+
+During testing, the test lead account soft-deleted a case record and a subject record. The audit trail was then reviewed to confirm that the actions were recorded by the TAC CMS.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/audit_validation_test_lead_delete.png}
+    \caption{Audit trail showing soft-delete actions performed by the TAC-LEAD-CRUD test account.}
+    \label{fig:audit-validation-test-lead-delete}
+\end{figure}
+
+Figure~\ref{fig:audit-validation-test-lead-delete} shows that the audit trail recorded both soft delete events. The entries include the timestamp, entity type, action, record reference, and role. The recorded role value of TAC-LEAD-CRUD confirms that the activity was linked to the privileged test account used during validation.
+
+This confirmed that TAC CMS audit logging was working as expected. When a privileged user performed delete activity, the action was recorded clearly in the audit trail and remained visible for later review.
+
+
 
 \section{Synthetic Data Validation}
