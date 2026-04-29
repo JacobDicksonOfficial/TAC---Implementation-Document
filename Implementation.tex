@@ -2,14 +2,275 @@
 
 \section{Network and Firewall Implementation}
 
-\section{Windows Server, Active Directory and ADFS Implementation}
+\section{Windows Server, Active Directory \& ADFS Implementation}
+
+The Windows Server identity layer was implemented to provide managed authentication and role assignment for the TAC CMS. Two Active Directory domains were used in the environment: TACCENTRAL.COM and TACCORP.COM. The purpose of this design was to separate the enterprise identity environment from the production-facing identity environment used by the case management platform.
+
+The implementation depended on four main checks: network connectivity, DNS resolution, domain discovery, and ADFS service availability. These were validated from both sides of the environment because federation and role based access depend on reliable communication between the domain controllers.
+
+
+The first validation step was basic connectivity between the two domain controllers. This confirmed that routing and firewall policy allowed the identity servers to communicate before DNS and trust validation were tested.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/ping_taccentral.png}
+        \caption*{(a) Ping from TACCORP to TACCENTRAL}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/ping_taccorp.png}
+        \caption*{(b) Ping from TACCENTRAL to TACCORP}
+    \end{minipage}
+    \caption{ICMP connectivity validation between both domain controllers.}
+    \label{fig:ping-domain-validation}
+\end{figure}
+
+The ping results show that both domain controllers could reach each other using their internal IP addresses. This confirmed that the server VLAN routing and firewall paths were working before higher-level Active Directory services were tested.
+
+DNS was then tested using \texttt{nslookup}. This was required because Active Directory, ADFS, domain trust, and certificate validation all depend on accurate hostname resolution. The tests confirmed that both domain names resolved to the correct internal domain controller addresses.
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/nslookup_taccorp.png}
+        \caption*{(a) DNS lookup for TACCORP.COM}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/nslookup_taccentral.png}
+        \caption*{(b) DNS lookup for TACCENTRAL.COM}
+    \end{minipage}
+    \caption{DNS lookup validation for both Active Directory domains.}
+    \label{fig:nslookup-domain-validation}
+\end{figure}
+
+The DNS lookup results confirmed that \texttt{taccorp.com} resolved to \texttt{10.20.31.3} and \texttt{taccentral.com} resolved to \texttt{10.20.31.2}. This showed that both domains had usable DNS records and that each domain controller could resolve the opposite domain.
+
+Domain controller discovery was then tested using \texttt{nltest}. These checks confirmed that each domain could locate the correct domain controller and that the Active Directory discovery process was functioning correctly.
+
+\vspace{0.4cm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/nltest_taccorp.png}
+
+    \vspace{0.8cm}
+
+    \includegraphics[width=0.82\textwidth]{Images/nltest_taccentral.png}
+
+    \vspace{0.4cm}
+    
+    \caption{NLTEST validation showing successful domain controller discovery for both TACCORP.COM and TACCENTRAL.COM.}
+    \label{fig:nltest-domain-validation}
+\end{figure}
+
+
+
+The \texttt{nltest} output shows that both domain controllers were discovered successfully and returned the expected domain controller names, domain names, and directory service flags. This confirmed that Active Directory discovery was working from both sides of the environment.
+
+ADFS was implemented to provide the federation layer for TAC CMS authentication. The ADFS role and service were checked using PowerShell to confirm that the role was installed and that the federation service was running.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/adfs_taccentral.png}
+    \vspace{0.4cm}
+    \caption{PowerShell validation showing that the ADFS role is installed and the federation service is running.}
+    \label{fig:adfs-service-running}
+\end{figure}
+
+The ADFS service check confirmed that the federation service was available for TAC CMS authentication. This was required before the application could redirect users to the identity provider and receive authentication claims.
+
+Active Directory security groups were also created to support TAC CMS role-based access. These groups were used to assign users to application roles instead of hardcoding access per user. This made the access model easier to manage and test.
+
+The Windows Server and ADFS implementation provided the identity foundation for the TAC CMS. Connectivity, DNS resolution, domain discovery, ADFS availability, and AD security groups were validated before the application-level RBAC behaviour was tested. This ensured that role-based access in the web application was supported by managed domain identity rather than local application accounts.
 
 \section{SSL Certificate Implementation}
 
+SSL/TLS certificates were implemented so that the TAC CMS web application and ADFS authentication endpoint could be accessed over HTTPS. This was required because authentication traffic, claims, session data, and application activity should not be transmitted over plain HTTP.
+
+\vspace{1cm}
+
+The TAC CMS web application uses the internal hostname portal.taccentral.com. A certificate for this hostname was installed on the Linux web server and referenced inside the Nginx HTTPS configuration. The private key remained on the web server and was not exported or shown in the report.
+
+\vspace{1cm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/nginx_portal_ssl_config.png}
+
+    \vspace{0.8cm}
+    
+    \caption{Nginx HTTPS configuration showing the certificate and private key paths used for the TAC CMS web application.}
+    \label{fig:nginx-portal-ssl-config}
+\end{figure}
+
+Figure~\ref{fig:nginx-portal-ssl-config} shows that Nginx was configured to serve portal.taccentral.com over HTTPS using the certificate and private key stored on the web application server. Only the file paths are shown, as the private key itself should never be exposed in documentation.
+
+The client machine was also configured to trust the internal certificate authorities used by the environment. OpenSSL was used to validate both exported root CA certificates and the live HTTPS certificates presented by ADFS and the TAC CMS web application.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/openssl_certificate_validation.png}
+    \vspace{1cm}
+    \caption{OpenSSL validation of the internal root CA certificates, ADFS certificate, and TAC CMS web application certificate from the client machine.}
+    \label{fig:openssl-certificate-validation}
+\end{figure}
+
+Figure~\ref{fig:openssl-certificate-validation} confirms that two internal certificate authorities were present in the environment. 
+
+The TACCORP-TAC-DC-CORP-01-CA} certificate was used to issue the TAC CMS web application certificate for portal.taccentral.com. The TACCENTRAL-TAC-DC-ENT-01-CA-1 certificate was used to issue the ADFS certificate for adfs.taccentral.com
+
+The OpenSSL output also confirmed that the live certificates matched the hostnames used by the services. The ADFS certificate contained subject alternative names for adfs.taccentral.com and certauth.adfs.taccentral.com. The TAC CMS certificate contained the subject alternative name portal.taccentral.com. This confirmed that the DNS names, certificate subjects, and HTTPS endpoints were aligned correctly.
+
+The SSL certificate implementation therefore provided encrypted access to both the web application and the ADFS authentication service. It also confirmed that the internal trust chain was working from the client machine, which was required to avoid browser certificate warnings and authentication errors inside the private intranet.
+
 \section{SQL Server Implementation}
+
+Microsoft SQL Server was deployed on a separate Windows Server to keep the data layer separate from the TAC CMS web application. The server was joined to TACCORP.COM so it could operate as a managed internal server within the project environment.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/sql_server_domain_joined.png}
+    \caption{SQL Server host joined to the TACCORP.COM domain.}
+    \label{fig:sql-server-domain-joined}
+\end{figure}
+
+The TAC CMS database was created in SQL Server to store application data for cases, subjects, addresses, relationships, audit logs, and imported records.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]{Images/sql_tac_database_tables.png}
+    \caption{SQL Server Management Studio showing the TAC CMS database and application tables.}
+    \label{fig:sql-tac-database-tables}
+\end{figure}
+
+The web application connects to SQL Server through backend API routes. Normal users do not access SQL Server directly; they interact with the TAC CMS interface while the API layer performs controlled database reads and writes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]{Images/sql_case_query_result.png}
+    \caption{SQL query result showing TAC CMS case records stored in Microsoft SQL Server.}
+    \label{fig:sql-case-query-result}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]{Images/sql_subject_query_result.png}
+    \caption{SQL query result showing TAC CMS subject records stored in Microsoft SQL Server.}
+    \label{fig:sql-subject-query-result}
+\end{figure}
+
+The SQL Server implementation confirmed that TAC CMS records were stored centrally instead of relying on browser storage or mock data.
 
 \section{Next.js Application Implementation}
 
-\section{RBAC, Claims and GUI Behaviour}
+\section{RBAC \& Federated Claims Implementation}
 
-\section{Audit Logging and Wazuh Implementation}
+ole-Based Access Control was implemented using Active Directory security groups and ADFS claim rules. The aim was to avoid managing application permissions directly against individual users. Instead, users were organised in Active Directory and assigned to TAC CMS role groups, while ADFS issued the role information to the web application during authentication.
+
+\begin{figure}[H]
+\centering
+\small
+
+\begin{minipage}[c]{0.38\textwidth}
+    \centering
+    \includegraphics[width=0.95\linewidth]{Images/ad_tac_ou_structure.png}
+\end{minipage}
+\hspace{0.04\textwidth}
+\begin{minipage}[c]{0.50\textwidth}
+    \raggedright
+    \setlength{\baselineskip}{1.25\baselineskip}
+    The Active Directory structure was created under the TAC-INDUSTRIES OU in TACCORP.COM. The structure separated users, global role groups, delegated administrators, and service accounts. The TAC-USERS OU was further divided into bureau based units such as TINTEL, TNCCB, TNDOCB, TNECB, TNIB, TINPSB, and TNSU. This allowed users to be organised by operational area while role permissions were handled through separate global security groups.
+\end{minipage}
+
+\caption{Active Directory OU structure used to organise TAC Industries users and role groups.}
+\label{fig:ad-tac-ou-structure}
+\end{figure}
+
+The main TAC CMS role groups were stored under the global roles structure. These groups represented application permission levels such as read-only intelligence access, operational create access, case lead CRUD access, infrastructure access, and emergency breakglass access.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.86\textwidth]{Images/ad_tac_role_groups.png}
+    \caption{Active Directory global security groups created for TAC CMS role-based access control.}
+    \label{fig:ad-tac-role-groups}
+\end{figure}
+
+The role groups shown in Figure~\ref{fig:ad-tac-role-groups} were used as the basis for TAC CMS access decisions. For example, TAC-INTEL-READ represented read-focused access, TAC-OPS-CR represented operational create access, and TAC-LEAD-CRUD represented case lead access with create, read, update, delete, analytics, and audit permissions.
+
+\vspace{0.6cm}
+
+ADFS was configured with a TAC CMS Portal application entry and claim issuance rules. After a user authenticated successfully, ADFS issued the relevant identity and role claims to the web application. The application then used these claims to map the user to the correct TAC CMS role.
+
+\vspace{0.4cm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/adfs_tac_cms_claim_rules.png}
+    \caption{ADFS TAC CMS portal configuration and claim issuance rules for role based access.}
+    \label{fig:adfs-tac-cms-claim-rules}
+\end{figure}
+
+Figure~\ref{fig:adfs-tac-cms-claim-rules} shows the TAC CMS Portal configuration and the claim rules created for the application. The LDAP core claims rule issued identity fields such as UPN, name, bureau, and email. Additional rules were created for TAC CMS role groups including TAC-LEAD-CRUD, TAC-INTEL-READ, TAC-OPS-CR, and TAC-ADMIN-BREAKGLASS.
+
+This implementation allowed role assignment to be controlled from Active Directory while ADFS handled the claim issue process. The TAC CMS could then use the received claims to apply the correct access policy after login.
+
+
+
+\section{Wazuh Implementation}
+
+Wazuh was implemented as the SIEM and monitoring layer for the TAC infrastructure. The Wazuh agent deployment across the main servers is shown earlier in Figure~\ref{fig:wazuh-agent-status}, where the domain controllers, SQL Server, web application server, and VPN server are reporting as active agents.
+
+On the Wazuh SIEM server, vulnerability detection was enabled so that monitored hosts could be checked for known software and operating system weaknesses. This added vulnerability visibility across the project servers and supported the wider security monitoring requirement.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/wazuh_vulnerability_detection_enabled.png}
+    \caption{Vulnerability detection enabled on the Wazuh SIEM server through the Wazuh configuration.}
+    \label{fig:wazuh-vulnerability-detection-enabled}
+\end{figure}
+
+Custom Wazuh rules were also added to detect Remote Desktop Protocol session activity by TAC administrator accounts. These rules were used to identify when an administrator connected to or disconnected from monitored Windows servers through RDP.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/wazuh_custom_rdp_rules.png}
+    \caption{Custom Wazuh rules added to detect TAC administrator RDP logon and disconnect activity.}
+    \label{fig:wazuh-custom-rdp-rules}
+\end{figure}
+
+The rules were validated by using a TAC administrator account to connect to the Windows SQL Server through RDP and then disconnect the session. Wazuh recorded the activity, confirming that the custom monitoring rule was working as intended.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/wazuh_rdp_admin_events_sql_server.png}
+    \caption{Wazuh event records showing TAC administrator RDP session activity on the Windows SQL Server.}
+    \label{fig:wazuh-rdp-admin-events-sql-server}
+\end{figure}
+
+This implementation provided host level monitoring outside the TAC CMS application itself. Wazuh was used to monitor server health, vulnerability visibility, and administrator access activity across the infrastructure.
+
+After vulnerability detection was enabled, Wazuh began populating CVE results for monitored hosts. Figure~\ref{fig:wazuh-vulnerability-results-sql-server} shows vulnerability results detected for \texttt{TAC-SQL-PROD-01}. This confirmed that the vulnerability module was collecting host inventory data and matching it against known CVE records.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/wazuh_vulnerability_results_sql_server.png}
+    \caption{Wazuh vulnerability results populated for the TAC-SQL-PROD-01 Windows Server host.}
+    \label{fig:wazuh-vulnerability-results-sql-server}
+\end{figure}
+
+The vulnerability results were treated as monitoring indicators rather than final proof of exploitation or exposure. Some results appeared to be false positives because the Windows Server host was already updated to the latest available build in the lab environment. This was checked directly on the server using winver, ipconfig, hostname, and whoami, confirming the monitored host identity and operating system version. 
+
+\vspace{1cm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{Images/windows_sql_server_version_check.png}
+    \caption{Windows Server version and host identity check for TAC-SQL-PROD-01.}
+    \label{fig:windows-sql-server-version-check}
+\end{figure}

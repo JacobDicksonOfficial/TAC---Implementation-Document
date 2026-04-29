@@ -2,14 +2,192 @@
 
 \section{Overall Architecture}
 
+Figure~\ref{fig:tac-high-level-architecture} shows the final architecture at a high level. The system is separated into access, identity, application, data, privileged administration, and monitoring areas.
+
+This separation was used to keep user traffic, authentication, database access, administration, and monitoring as distinct parts of the design.
+
+The main access path is through the TAC CMS web application. The application sits between users and the SQL Server database, so case and subject records are only reached through the controlled web/API layer.
+
+Authentication and role information are supplied through Active Directory and ADFS, while pfSense and VLANs control which network paths are allowed.
+
+The diagram also separates implemented components from future or supporting components. Wazuh is used for monitoring, while tamper resistant object storage is treated as a future improvement rather than a completed core feature.
+
+\begin{figure}[p]
+    \centering
+    \vspace*{\fill}
+    \includegraphics[width=0.98\textwidth]{Images/tac_high_level_architecture.png}
+    \captionsetup{justification=centering}
+    \caption{High level TAC CMS architecture showing user access paths, identity services, application layer, data layer, privileged access, and monitoring components.}
+    \label{fig:tac-high-level-architecture}
+    \vspace*{\fill}
+\end{figure}
+
 \section{Network and VLAN Architecture}
+
+The TAC CMS network was built using a segmented VLAN design instead of placing all systems on one flat subnet. A TP-Link TL-SG108E managed switch was used so that separate services could be placed into different internal networks while still using the same physical switching infrastructure. This allowed production users, servers, management systems, and VPN/admin access to be separated logically.
+
+Trunking was implemented between pfSense, the managed switch, and the Proxmox hosts. The pfSense interface acted as the routing and firewall point for the VLANs, while the TP-Link switch carried tagged VLAN traffic between the firewall and virtualisation hosts. Proxmox then presented the required VLANs to the virtual machines depending on the role of each server. This made it possible to host multiple isolated services on the same physical lab infrastructure without merging them into one broadcast domain.
+
+The internal addressing followed the private IPv4 address ranges defined by RFC 1918. The project used the 10.0.0.0/8 private address space, with each VLAN assigned its own subnet. This ensured that all infrastructure services remained private and were not directly routable on the public Internet.
+
+\vspace{1cm}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{|p{2.2cm}|p{3.2cm}|p{3.2cm}|X|}
+\hline
+\textbf{VLAN} & \textbf{Subnet} & \textbf{Purpose} & \textbf{Example Systems / Access} \\
+\hline
+VLAN 20 & 10.20.20.0/24 & Production Users & User devices accessing the TAC CMS web application. \\
+\hline
+VLAN 31 & 10.20.31.0/24 & Server Network & TAC web server, SQL Server, TACCOP \& TACCENTRAL DC, ADFS, and backend services. \\
+\hline
+VLAN 40 & 10.20.40.0/24 & Security / Management & Management systems, SIEM  and Administrative infrastructure. \\
+\hline
+VLAN 50 & 10.20.50.0/24 & VPN / Admin Access & Controlled remote or privileged access into the internal environment. \\
+\hline
+\end{tabularx}
+\caption{VLAN and subnet allocation used in the TAC CMS environment}
+\label{tab:vlan-subnet-allocation}
+\end{table}
+
 
 \section{Identity and Federation Architecture}
 
-\section{Application and API Architecture}
+The identity architecture was based on two Active Directory domains: TACCENTRAL.COM and TACCORP.COM. 
 
-\section{Database Architecture}
+TACCENTRAL.COM represents the enterprise environment used for managed endpoints and internal services, while TACCORP.COM represents the production identity environment used for higher control access of the CMS. A trust relationship was configured so that identity information could be used across the environment where required.
+
+ADFS was hosted on the TACCENTRAL.COM side of the architecture so this means the application does not need to manage local user passwords. Instead, authentication is handled by the domain identity infrastructure which in this case is the windows server.
+
+\vspace{1cm}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.4cm}|>{\raggedright\arraybackslash}p{9cm}|}
+\hline
+\textbf{Identity Component} & \textbf{Purpose in TAC CMS} \\
+\hline
+TACCENTRAL.COM & Enterprise domain used for managed endpoints, internal services, and the ADFS federation service. \\
+\hline
+TACCORP.COM & Production identity domain used to separate TAC CMS web application identities from the enterprise environment. \\
+\hline
+Domain Trust & Allows identity relationships between the two domains where required by the access model. \\
+\hline
+Active Directory Users & Provides named user identities for login and accountability. \\
+\hline
+Active Directory Groups & Assigns users to TAC CMS roles such as TAC-LEAD-CRUD, TAC-OPS-CR, and TAC-INTEL-READ. \\
+\hline
+ADFS & Issues authentication claims to the TAC CMS after successful domain authentication. \\
+\hline
+TAC CMS Role Mapping & Converts the received claim into application permissions and GUI behaviour. \\
+\hline
+\end{tabular}
+\caption{Identity and federation components used by the TAC CMS}
+\label{tab:identity-federation-components}
+\end{table}
+\vspace{2cm}
+
+The access flow starts when a user attempts to open the TAC CMS. The user is redirected to ADFS for authentication. After successful login, ADFS issues the relevant claims back to the application. The TAC CMS then maps the claim to an internal role and displays the correct interface options for that user.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Images/tac_adfs_claims_session_flow.png}
+    \caption{ADFS authentication, claims mapping, session handling, and RBAC policy flow for TAC CMS access.}
+    \label{fig:tac-adfs-claims-session-flow}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{|p{2cm}|X|}
+\hline
+\textbf{Step} & \textbf{Process} \\
+\hline
+1 & User attempts to access the TAC CMS web application. \\
+\hline
+2 & The application redirects the user to ADFS for authentication. \\
+\hline
+3 & ADFS validates the user against Active Directory. \\
+\hline
+4 & Active Directory group membership is used to determine the user's TAC role. \\
+\hline
+5 & ADFS issues the authentication claim back to the TAC CMS. \\
+\hline
+6 & TAC CMS maps the claim to GUI permissions such as view, create, edit, delete, analytics, and audit access. \\
+\hline
+\end{tabularx}
+\caption{Federated login and role mapping flow}
+\label{tab:federated-login-flow}
+\end{table}
+
+
+\section{Application, API \& Database Architecture}
+
+SQL Server was deployed on a separate domain joined Windows Server on Proxmox under VLAN 31 to separate the application and data layers. Joining the server to TACCORP.COM allowed it to receive organisational management controls such as Group Policy and certificate trust.
+
+For the lab environment, TACCORP Administrator account was used during setup and validation. In production, this would be replaced with a dedicated Active Directory service account for the TAC CMS database connection.
+
+That account would be granted only the required SQL permissions and would be audited separately from administrator accounts.
+
+\section{Application, API \& Database Architecture}
+
+The TAC CMS application was built using Next.js and deployed separately from the SQL Server database. The application layer provides the browser-based interface for the case registry, subject registry, analytics dashboard, audit trail, and bulk import workflow. Database access is handled through backend API routes rather than direct client-side connections.
+
+The API layer acts as the control point between the interface and SQL Server. When a user creates, edits, deletes, restores, imports, or views records, the request is processed by an API route. This allows role checks, validation, SQL interaction, and audit logging to occur before a response is returned to the user.
+
+\vspace{1cm}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{Images/tac_application_api_database_flow.png}
+    \caption{SQL Server query result showing case records stored for display in the TAC CMS registry.}
+    \label{fig:sql-case-registry-query}
+\end{figure}
 
 \section{Monitoring and Audit Architecture}
 
-\section{Business Continuity and Recovery Considerations}
+Monitoring was implemented using Wazuh agents deployed across the main Windows and Linux hosts in the TAC environment. This provided infrastructure visibility for the systems supporting the case management platform, including the domain controllers, SQL Server, web application server, and VPN server.
+
+The monitoring layer is separate from the TAC CMS application audit trail. Wazuh records host-level and security-relevant events from servers, while the TAC CMS audit trail records application-level actions such as case creation, subject creation, soft deletion, restoration, and record access. Together, these provide visibility at both the infrastructure and application layers.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.2cm}|>{\raggedright\arraybackslash}p{2.6cm}|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}p{4.4cm}|}
+\hline
+\textbf{Hostname} & \textbf{IP Address} & \textbf{Operating System} & \textbf{Purpose} \\
+\hline
+TAC-DC-CORP-01 & 10.20.31.3 & Windows Server 2022 & TACCORP domain controller and production identity services. \\
+\hline
+TAC-DC-ENT-01 & 10.20.31.2 & Windows Server 2022 & TACCENTRAL domain controller, enterprise identity services, and ADFS support. \\
+\hline
+TAC-SQL-PROD-01 & 10.20.31.4 & Windows Server 2022 & Microsoft SQL Server host for TAC CMS case, subject, and audit data. \\
+\hline
+TAC-WEBAPP-01 & 10.20.31.10 & Ubuntu 22.04 LTS & Linux server hosting the TAC CMS Next.js web application. \\
+\hline
+TAC-VPN-01 & 10.20.40.3 & Ubuntu 22.04 LTS & VPN access server used for controlled remote/admin access. \\
+\hline
+\end{tabular}
+\caption{Wazuh agent deployment across TAC infrastructure hosts}
+\label{tab:wazuh-agent-deployment}
+\end{table}
+
+Figure~\ref{fig:wazuh-agent-status} shows the Wazuh agent dashboard with all five monitored hosts reporting as active. This confirms that monitoring coverage was achieved across the key infrastructure systems used by the TAC CMS.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{Images/wazuh_agent_status.png}
+    \caption{Wazuh dashboard showing active monitoring agents across the TAC infrastructure.}
+    \label{fig:wazuh-agent-status}
+\end{figure}
+
+The monitoring architecture supports accountability and operational visibility. Windows hosts can report authentication, RDP, security, and system events, while Linux hosts can report system activity from the web and VPN servers.
+
+The TAC CMS audit trail then adds application-specific accountability by recording actions performed inside the platform.
