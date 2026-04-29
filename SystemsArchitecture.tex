@@ -126,15 +126,6 @@ The access flow starts when a user attempts to open the TAC CMS. The user is red
 \label{tab:federated-login-flow}
 \end{table}
 
-
-\section{Application, API \& Database Architecture}
-
-SQL Server was deployed on a separate domain joined Windows Server on Proxmox under VLAN 31 to separate the application and data layers. Joining the server to TACCORP.COM allowed it to receive organisational management controls such as Group Policy and certificate trust.
-
-For the lab environment, TACCORP Administrator account was used during setup and validation. In production, this would be replaced with a dedicated Active Directory service account for the TAC CMS database connection.
-
-That account would be granted only the required SQL permissions and would be audited separately from administrator accounts.
-
 \section{Application, API \& Database Architecture}
 
 The TAC CMS application was built using Next.js and deployed separately from the SQL Server database. The application layer provides the browser-based interface for the case registry, subject registry, analytics dashboard, audit trail, and bulk import workflow. Database access is handled through backend API routes rather than direct client-side connections.
@@ -154,7 +145,7 @@ The API layer acts as the control point between the interface and SQL Server. Wh
 
 Monitoring was implemented using Wazuh agents deployed across the main Windows and Linux hosts in the TAC environment. This provided infrastructure visibility for the systems supporting the case management platform, including the domain controllers, SQL Server, web application server, and VPN server.
 
-The monitoring layer is separate from the TAC CMS application audit trail. Wazuh records host-level and security-relevant events from servers, while the TAC CMS audit trail records application-level actions such as case creation, subject creation, soft deletion, restoration, and record access. Together, these provide visibility at both the infrastructure and application layers.
+The monitoring layer is separate from the TAC CMS application audit trail. Wazuh records host level and security relevant events from servers, while the TAC CMS audit trail records application level actions such as case creation, subject creation, soft deletion, restoration, and record access. Together, these provide visibility at both the infrastructure and application layers.
 
 \begin{table}[H]
 \centering
@@ -190,4 +181,22 @@ Figure~\ref{fig:wazuh-agent-status} shows the Wazuh agent dashboard with all fiv
 
 The monitoring architecture supports accountability and operational visibility. Windows hosts can report authentication, RDP, security, and system events, while Linux hosts can report system activity from the web and VPN servers.
 
-The TAC CMS audit trail then adds application-specific accountability by recording actions performed inside the platform.
+The TAC CMS audit trail then adds application specific accountability by recording actions performed inside the platform.
+
+In addition to Wazuh monitoring, Proxmox was used to provide infrastructure level monitoring of the virtualisation hosts. The Proxmox dashboards allowed CPU, memory, storage usage, uptime, and running virtual machines to be reviewed for both the production and security hypervisors. This was useful for confirming that the TAC CMS supporting servers were running and that host resources were available during testing.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/proxmox_production_dashboard.png}
+    \caption{Proxmox dashboard showing the production virtualisation host and running TAC CMS infrastructure virtual machines.}
+    \label{fig:proxmox-production-dashboard}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/proxmox_security_dashboard.png}
+    \caption{Proxmox dashboard showing the security virtualisation host and supporting infrastructure virtual machines.}
+    \label{fig:proxmox-security-dashboard}
+\end{figure}
+
+The production hypervisor hosted core TAC CMS infrastructure such as the enterprise domain controller, web application server, and SQL Server. The security hypervisor hosted supporting services such as the SIEM and VPN-related infrastructure. Together, these dashboards provided a simple way to monitor allocated compute, memory, storage, and virtual machine status during implementation and validation.

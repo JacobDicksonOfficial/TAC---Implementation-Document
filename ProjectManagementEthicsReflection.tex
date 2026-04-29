@@ -2,6 +2,70 @@
 
 \section{Version Control and Commit Evidence}
 
+Version control was managed using Git and GitHub throughout the project. Separate branches were used to keep stable material, implementation work, report evidence, and web application development separated.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.92\textwidth]{Images/github_branches.png}
+    \caption{GitHub repository branch structure used during the TAC Industries project.}
+    \label{fig:github-branches}
+\end{figure}
+
+Figure~\ref{fig:github-branches} shows the six branches used in the repository. TAC-Stable was used as the stable project branch and contained organised project screenshots and supporting material. TAC-Implementation was used for infrastructure and configuration work. TAC-Report-S1 contained Semester 1 report material, while TAC-Report-S2 contained Semester 2 screenshots and final report evidence.
+
+The two web application branches separated the application development stages. TAC-WebApp was used for the mock-storage version of the TAC CMS, allowing the interface and workflow to be tested before database integration. TAC-WebApp-SQL was used for the SQL and API-enabled version connected to Microsoft SQL Server.
+
+
 \section{Use of AI Tools}
 
+AI tools were used during the project as support tools for design inspiration of the TAC CMS portal and test data. The tools were not used as a replacement for the implementation work. The final configuration, deployment, validation, screenshots, and technical decisions were completed manually as part of the project.
+
+For the TAC CMS interface, AI was used to support UI inspiration and dashboard layout ideas. Claude was used to explore visual layout ideas, and the generated design direction was then adapted into the TAC CMS dashboard. The final implementation was modified to match the project requirements, including the wiring of case registry, subject registry, analytics, audit trail, and role based interface behaviour.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/ai_ui_prompt_evidence.png}
+    \caption{AI prompt evidence showing UI and dashboard design support used during TAC CMS development.}
+    \label{fig:ai-ui-prompt-evidence}
+\end{figure}
+
+AI tools were also used to help generate synthetic test data for the TAC CMS bulk import process. This was necessary because the system was designed around investigative case and subject records, but real real or personal data could not be used due to ethic violations. The generated data was reviewed and adapted before being imported into the TAC CMS portal for testing.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{Images/ai_synthetic_data_prompt_evidence.png}
+    \caption{AI prompt evidence showing synthetic case and subject data generation for TAC CMS testing.}
+    \label{fig:ai-synthetic-data-prompt-evidence}
+\end{figure}
+
+
 \section{Technical Challenges and Resolutions}
+
+Several technical challenges were encountered during the project. These were resolved through testing, command line validation, screenshot evidence, and multiple configuration changes.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{4cm}|>{\raggedright\arraybackslash}p{5cm}|>{\raggedright\arraybackslash}p{5cm}|}
+\hline
+\textbf{Challenge} & \textbf{Issue Encountered} & \textbf{Resolution} \\
+\hline
+Domain trust and DNS validation & Cross domain authentication required both TACCORP.COM and TACCENTRAL.COM to resolve each other correctly. & DNS records, PTR records, ping tests, nslookup, and nltest were used to confirm domain controller discovery and trust functionality. \\
+\hline
+ADFS authentication and claims & TAC CMS required claims from ADFS to identify the user role and department. & ADFS claim issuance rules were configured and tested using dedicated role based test accounts. \\
+\hline
+SSL certificate trust & Internal HTTPS services required certificates that were trusted by client machines. & Internal CA certificates were exported, installed, and verified using browser access and OpenSSL certificate checks. \\
+\hline
+SQL Server integration & The application needed to move from mock/local data to SQL backed persistent storage. & A dedicated SQL Server was deployed, domain joined, and tested using SSMS queries and application records. \\
+\hline
+RBAC interface restrictions & Different roles needed different interface visibility and route access. & The web application was tested using separate TAC role accounts to confirm hidden analytics, denied delete actions, and permitted full access behaviour. \\
+\hline
+Wazuh monitoring validation & Some Wazuh vulnerability findings appeared even when the Windows Server version was current. & Findings were treated as monitoring indicators and manually validated against the host version and patch state. \\
+\hline
+Report formatting & Large screenshots and architecture diagrams were difficult to fit cleanly in Overleaf. & Images were resized, centred, split across figures, or placed alongside short explanatory text. \\
+\hline
+\end{tabular}
+\caption{Technical challenges encountered during the TAC CMS project}
+\label{tab:technical-challenges}
+\end{table}

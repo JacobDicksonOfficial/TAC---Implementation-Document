@@ -4,3 +4,8 @@
 
 \section{Project Summary}
 
+The TAC CMS project delivered a prototype identity centric case management platform for TAC Industries. The system demonstrated secure handling of case and subject records using Active Directory, ADFS claims, role based access control, SQL Server storage, VLAN segmentation, SSL certificates, audit logging, and Wazuh monitoring.
+
+The final implementation included a Next.js web application connected to Microsoft SQL Server through API routes. Users authenticated through ADFS, and TAC CMS applied permissions based on department and role claims such as TAC-INTEL-READ, TAC-OPS-CR, and TAC-LEAD-CRUD.
+
+Validation confirmed that restricted users had limited access, while privileged users could access analytics, audit, and archive/delete actions. Overall, the project successfully demonstrated a working Zero Trust inspired case management environment with identity, network, application, database, and monitoring controls.

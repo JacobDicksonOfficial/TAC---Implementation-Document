@@ -151,5 +151,44 @@ Figure~\ref{fig:audit-validation-test-lead-delete} shows that the audit trail re
 This confirmed that TAC CMS audit logging was working as expected. When a privileged user performed delete activity, the action was recorded clearly in the audit trail and remained visible for later review.
 
 
-
 \section{Synthetic Data Validation}
+
+Synthetic data was used to test the TAC CMS without using real case, victim, suspect, witness, or operational records. The test data was created in CSV format using the required case import columns such as \texttt{title}, \texttt{case\_type}, \texttt{case\_status}, \texttt{priority}, \texttt{sensitivity\_level}, \texttt{retention\_category}, \texttt{incident\_date}, \texttt{incident\_location}, \texttt{bureau\_tag}, and \texttt{case\_notes}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/synthetic_cases_csv_notepad.png}
+    \caption{Synthetic case data prepared in CSV format before import.}
+    \label{fig:synthetic-cases-csv-notepad}
+\end{figure}
+
+The screenshot above shows the synthetic case records prepared as a notepad file that will be formatted to a csv file. The records used fictional case titles, fictional notes, valid enum values, and test bureau tags so that the import process could be validated without using real operational data.
+
+The CSV file was then uploaded through the TAC CMS bulk import page. The import page displayed the expected columns and validation rules before the file was selected.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/synthetic_cases_import_page.png}
+    \caption{TAC CMS bulk import page showing the expected CSV columns and enum values.}
+    \label{fig:synthetic-cases-import-page}
+\end{figure}
+
+After upload, TAC CMS previewed the rows and checked whether the data matched the required schema. The preview confirmed that the uploaded rows were valid and could be imported.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/synthetic_cases_import_preview.png}
+    \caption{Bulk import preview showing valid synthetic case rows before import.}
+    \label{fig:synthetic-cases-import-preview}
+\end{figure}
+
+The valid rows were then imported into the TAC CMS. After import, the new synthetic case records appeared in the case registry, confirming that the import process created application records successfully.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{Images/synthetic_cases_imported_registry.png}
+    \caption{Synthetic case records displayed in the TAC CMS case registry after import.}
+    \label{fig:synthetic-cases-imported-registry}
+\end{figure}
+
+This validation confirmed that TAC CMS could accept structured synthetic CSV data.
