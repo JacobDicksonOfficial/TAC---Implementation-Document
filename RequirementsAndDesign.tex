@@ -1,13 +1,190 @@
 \raggedright
 
-\section{Business and Functional Requirements}
+\section{Requirement Matrix}
 
-\section{Security and Infrastructure Requirements}
+\vspace{-0.5cm}
 
-\section{Technology Selection}
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{|p{1.1cm}|p{3cm}|p{7cm}|p{1.8cm}|}
+\hline
+\textbf{ID} & \textbf{Requirement} & \textbf{Description} & \textbf{Priority} \\
+\hline
+R1 & Case Registry & Store, search, filter, create, edit, archive, and review case records. & High \\
+\hline
+R2 & Subject Registry & Store and manage subject records, aliases, addresses, identity confidence, and sensitivity. & High \\
+\hline
+R3 & Role-Based Access & Control visible actions based on AD group membership and ADFS claims. & High \\
+\hline
+R4 & Persistent Storage & Store case, subject, and audit records in SQL Server. & High \\
+\hline
+R5 & Bulk Import & Import structured synthetic records for testing and analytics. & High \\
+\hline
+R6 & Audit Trail & Record create, update, delete, restore, and import activity. & High \\
+\hline
+R7 & Analytics & Summarise case and subject activity using dashboard charts and counters. & Medium \\
+\hline
+R8 & Network Segmentation & Separate users, servers, management, and VPN access using VLANs. & High \\
+\hline
+R9 & Encrypted Access & Use HTTPS for the web application and federation traffic. & High \\
+\hline
+R10 & Monitoring & Use Wazuh to monitor selected Windows and Linux hosts. & Medium \\
+\hline
+R11 & Synthetic Test Data & Avoid real personal, criminal, victim, suspect, or operational records. & High \\
+\hline
+\end{tabular}
+\caption{TAC CMS requirement matrix}
+\end{table}
 
-\section{Zero Trust and Identity-Centric Design}
+\section{Technology Selection \& Security}
 
-\section{Role-Based Access Control Design}
+The technology stack and model implemented was selected to keep the platform realistic, affordable, and reproducible in a lab or small organisation.
 
-\section{Data Protection Requirements}
+Most of the core components used in the project are open source or available at no software licence cost for the project environment. 
+
+This allowed the system to be built as a low cost information system, with the main costs being physical equipment, electricity, ISP connectivity, and the static public IP address used for external/VPN related access.
+
+The aim was not to depend on expensive commercial security platforms. Instead, the project demonstrates how a secure case management environment can be assembled using commonly available infrastructure tools.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+        \pie[
+            radius=2.8,
+            text=legend,
+            sum=100,
+            color={green!55!black, red!75!black, gray!60},
+            after number=\%
+        ]{
+            43/Open-source / no-cost tools,
+            29/Licensed / enterprise-style tools,
+            28/Physical / operational costs
+        }
+    \end{tikzpicture}
+    \caption{Technology and cost grouping used in the TAC CMS project.}
+    \label{fig:technology-cost-grouping}
+\end{figure}
+
+pfSense provided firewalling and VLAN control, Proxmox provided virtualisation, Next.js provided the application framework, and Wazuh provided monitoring. 
+
+Microsoft SQL Server and Windows Server were used for the database and identity environment because they are common in enterprise networks and suitable for demonstrating Active Directory, ADFS, and SQL backed application storage.
+
+
+This approach made the project technically realistic while keeping it achievable. It also reflects how smaller organisations could prototype secure internal systems without immediately relying on high cost commercial platforms.
+
+
+
+
+
+
+
+
+The security model was influenced by the NIST SP 800-207 Zero Trust Architecture model. In TAC CMS, users are not trusted simply because they are connected to the internal network. Access decisions are based on Active Directory identity, ADFS claims, group membership, application role mapping, and network controls.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{Images/nist_zero_trust_architecture.png}
+    \caption{NIST SP 800-207 Zero Trust Architecture model used as a reference for the TAC CMS security design.}
+    \label{fig:nist-zero-trust}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{|p{3.7cm}|X|}
+\hline
+\textbf{NIST Concept} & \textbf{TAC CMS Implementation} \\
+\hline
+Subject & Field users such as investigators, private investigators, social care workers, or authorised staff. \\
+\hline
+System & User browser or endpoint accessing the TAC CMS. \\
+\hline
+Policy Decision Point & ADFS, Active Directory group membership, and application RBAC logic. \\
+\hline
+Policy Enforcement Point & TAC web application, ADFS login flow, and pfSense firewall rules. \\
+\hline
+Enterprise Resource & TAC CMS, SQL Server database, case records, subject records, and audit logs. \\
+\hline
+Identity & Active Directory users, security groups, and ADFS claims. \\
+\hline
+Activity Logs / SIEM & TAC audit trail and Wazuh monitoring. \\
+\hline
+PKI & Internal SSL/TLS certificates used for HTTPS and federation trust. \\
+\hline
+\end{tabularx}
+\caption{Mapping of NIST Zero Trust concepts to the TAC CMS}
+\label{tab:nist-zero-trust-mapping}
+\end{table}
+
+
+\section{Access Control \& Data Protection}
+
+
+Access control was implemented around a role based model. In this design, users are not given permissions individually inside the application. Instead, access is linked to Active Directory group membership, ADFS claims, and the role assigned to the user inside the TAC CMS.
+
+This follows the principle that access control should define who can access a resource, under what conditions access is allowed, and what actions the user can perform. In the TAC CMS, the protected resources are case records, subject records, audit logs, analytics, and administrative actions.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\textbf{AD Role Group} & \textbf{View} & \textbf{Create} & \textbf{Edit} & \textbf{Delete} & \textbf{Analytics} & \textbf{Audit} \\
+\hline
+No TAC Role & Limited & No & No & No & No & No \\
+\hline
+TAC-INTEL-READ & Yes & No & No & No & Limited & No \\
+\hline
+TAC-OPS-CR & Yes & Yes & Limited & No & Limited & No \\
+\hline
+TAC-LEAD-CRUD & Yes & Yes & Yes & Yes & Yes & Yes \\
+\hline
+TAC-ADMIN-BREAKGLASS & No & No & No & No & No & No \\
+\hline
+\end{tabular}%
+}
+\caption{Role based access control matrix for the TAC CMS}
+\label{tab:rbac-matrix}
+\end{table}
+
+The role model also made the system easier to validate. A user with no valid domain account cannot authenticate. A valid domain user without the correct TAC security group receives limited access. A correctly assigned user receives the expected role claim and can access the relevant application features. This allowed access control to be tested directly through the GUI by comparing the options shown to different users.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{|p{4cm}|X|}
+\hline
+\textbf{Access Control Layer} & \textbf{Purpose in TAC CMS} \\
+\hline
+Active Directory Users & Provides managed domain identities instead of local application-only accounts. \\
+\hline
+Active Directory Groups & Assigns users to application roles through central group membership. \\
+\hline
+ADFS Claims & Passes trusted identity and role information to the application. \\
+\hline
+Application RBAC Logic & Controls which GUI actions and pages are available to each role. \\
+\hline
+pfSense Firewall Rules & Restricts network paths between users, servers, management systems, and backend services. \\
+\hline
+SQL Server Isolation & Prevents ordinary users from connecting directly to the database. \\
+\hline
+Audit Trail & Records important user actions for accountability and review. \\
+\hline
+\end{tabularx}
+\caption{Access control layers used in the TAC CMS}
+\label{tab:access-control-layers}
+\end{table}
+
+Data protection was considered even though the project used synthetic data only. No real case records, victim data, suspect data, witness data, private investigation records, social care records, or operational law enforcement data were used during testing. This allowed the system to demonstrate realistic workflows without processing real personal data.
+
+All testing and bulk import records were fictional and created for demonstration purposes only. ChatGPT was used to assist with generating sample test records, but the generated data was not based on real people, real investigations, or real operational datasets.
+
+The data model was kept limited to the fields required for case management, subject management, auditing, and analytics. This supported data minimisation by avoiding unnecessary fields that would increase privacy risk in a real deployment.
+
+In a real production deployment, further data protection work would be required. This would include a formal DPIA, data retention policy, backup policy, incident response plan, MFA, and documented data governance procedures.
