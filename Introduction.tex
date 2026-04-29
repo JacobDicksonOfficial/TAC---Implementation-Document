@@ -2,10 +2,48 @@
 
 \section{Project Overview}
 
-\section{Problem Statement}
+TAC, short for Tactical Analysis and Communication, is a secure case management platform designed for field based users who need controlled access to sensitive operational records. The system is aimed at environments such as law enforcement, private investigation, social care, and high security clearance organisations where users may need to review case, subject, victim, suspect, location, and audit information while working away from a central office.
 
-\section{Project Aim and Objectives}
+The platform provides a central registry for managing case and subject records. Users can create and review cases, manage subject profiles, import records in bulk, view operational analytics, and inspect audit activity. Access is controlled through Active Directory, ADFS, security group membership, and claims based role mapping.
 
-\section{Final Project Scope}
+This means the system does not rely only on a user being connected to the internal network (intranet) but alse what the user can see and do depends on their verified identity and assigned role.
 
-\section{Report Structure}
+The application is backed by Microsoft SQL Server and hosted inside a segmented infrastructure using pfSense, VLANs, provisioned using SSL/HTTPS certificates, and Wazuh monitoring.
+
+SQL Server is not exposed directly to ordinary users. Users interact with the web application, and the application communicates with the database through controlled API routes. This supports least privilege, database isolation, auditability, and safer handling of sensitive records.
+
+The project was developed as a proof of concept rather than a production law enforcement system. No real case, victim, suspect, witness, or operational data was used. Synthetic records were used for bulk import, analytics, and validation so the platform could be tested realistically without creating privacy or ethical risk.
+
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/cases_registry.png}
+    \caption{TAC case registry showing case records, filters, status, priority, and bureau fields.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/analytics_dashboard.png}
+    \caption{Analytics dashboard summarising case and subject activity.}
+\end{figure}
+
+\section{Project Development Life Cycle}
+
+The TAC CMS (Case Management System) was developed around six connected areas: application functionality, identity, database storage, network segmentation, security controls, and synthetic testing data. These areas were not treated as separate features but more or less that one feature supported the others during implementation.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.50\textwidth]{Images/tac_cms_development_lifecycle.png}
+    \caption{TAC CMS Development Lifecycle}
+    \label{fig:tac-cms-development-lifecycle}
+\end{figure}
+
+The application layer provided the user facing case registry, subject registry, analytics dashboard, audit trail, maps, aliases, addresses, and bulk import functions.
+
+The identity layer controlled access through Active Directory users, security groups, ADFS authentication and claims based role mapping.
+
+The database layer stored case, subject, and audit records in Microsoft SQL Server. The network layer used pfSense and VLANs to separate users, servers, management access, and backend services. The security layer combined HTTPS, RBAC, audit logging, least privilege, and monitoring.
+
+Synthetic testing data was used to validate the system without using real personal, victim, suspect, or operational records.
+
